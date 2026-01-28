@@ -179,6 +179,17 @@ namespace gsudo.Rpc
                 // not much to protect.
                 return true;
             }
+
+#if UNIELEVATE
+            // UniElevate: Add integrity verification for client process
+            if (!IntegrityHelpers.VerifyClientProcess(clientProcess, isGsudoService: true))
+            {
+                Logger.Instance.Log(
+                    $"Invalid Client. {clientProcess.GetExeName()} (PID: {clientPid}) failed integrity check",
+                    LogLevel.Error);
+                return false;
+            }
+#endif
             
             clientProcessMainModule = clientProcess.MainModule;
 

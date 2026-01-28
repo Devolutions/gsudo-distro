@@ -20,7 +20,11 @@ namespace gsudo.AppSettings
 
     abstract class RegistrySetting
     {
+#if UNIELEVATE
+        protected const string REGKEY = "SOFTWARE\\unielevate-gsudo";
+#else
         protected const string REGKEY = "SOFTWARE\\gsudo";
+#endif
         public RegistrySettingScope Scope { get; protected set; }
 
         public string Name { get; set; }

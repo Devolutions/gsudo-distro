@@ -26,6 +26,16 @@
 	<NoWarn>1701;1702;CA1303;CA1707;CA1028;CA1001;CA1031;CA1416</NoWarn>
 	<ApplicationIcon>icon\gsudo.ico</ApplicationIcon>
   </PropertyGroup>
+  <!-- UniElevate Build Variant Configuration -->
+  <PropertyGroup Condition="'$(BuildVariant)'=='UniElevate'">
+    <AssemblyName>UniGetUI Elevator</AssemblyName>
+    <DefineConstants>$(DefineConstants);UNIELEVATE</DefineConstants>
+    <ApplicationIcon>icon\unielevate.ico</ApplicationIcon>
+    <Product>UniGetUI Elevator</Product>
+    <Description>A specialized elevation tool for UniGetUI with enhanced security verification</Description>
+    <!-- UniElevate only supports .NET 9.0 due to Microsoft.Security.Extensions dependency -->
+    <TargetFrameworks>net9.0</TargetFrameworks>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)'=='net9.0'">
     <PublishAot>true</PublishAot>
     <AutoGenerateBindingRedirects>False</AutoGenerateBindingRedirects>
@@ -68,6 +78,10 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='net46'">
 	<PackageReference Include="System.Security.Principal.Windows" Version="4.6.0" />
+  </ItemGroup>
+  <!-- UniElevate specific dependencies -->
+  <ItemGroup Condition="'$(BuildVariant)'=='UniElevate'">
+    <PackageReference Include="Microsoft.Security.Extensions" Version="1.4.0" />
   </ItemGroup>
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="IF NOT DEFINED nokill echo Killing running gsudo commands.&#xD;&#xA;IF NOT DEFINED nokill gsudo -k 2&gt;nul&#xD;&#xA;IF NOT DEFINED nokill %25windir%25\sysnative\tskill gsudo&#xD;&#xA;exit 0" />

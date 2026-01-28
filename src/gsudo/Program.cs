@@ -11,6 +11,15 @@ namespace gsudo
         {
             SymbolicLinkSupport.EnableAssemblyLoadFix();
 
+#if UNIELEVATE
+            // UniElevate: Verify caller process integrity before processing commands
+            if (!IntegrityHelpers.VerifyCallerProcess(isGsudoService: false))
+            {
+                Logger.Instance.Log("Caller process failed integrity verification. Exiting.", LogLevel.Error);
+                return Constants.GSUDO_ERROR_EXITCODE;
+            }
+#endif
+
             return await Start().ConfigureAwait(false);
         }
 
