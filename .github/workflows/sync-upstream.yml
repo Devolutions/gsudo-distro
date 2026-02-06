@@ -1,0 +1,70 @@
+name: sync upstream
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync upstream branch and tags
+    runs-on: ubuntu-22.04
+    environment: publish-prod
+    if: ${{ github.repository_owner == 'Devolutions' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/gerardog/gsudo.git
+
+      - name: Fetch upstream branches
+        run: |
+          git fetch upstream --prune
+
+      - name: Update upstream branch
+        run: |
+          git push origin refs/remotes/upstream/master:upstream --force
+
+      - name: Push upstream tags under namespace
+        run: |
+          set -euo pipefail
+          if [ -z "${SYNC_TOKEN}" ]; then
+            echo "SYNC_TOKEN not set; skipping tag synchronization."
+            exit 0
+          fi
+
+          git fetch origin --tags
+          git fetch upstream --prune "+refs/tags/*:refs/tags/upstream/*"
+          git remote set-url origin "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          tags_to_push=()
+          while IFS= read -r tag_ref; do
+            commit_sha=$(git rev-list -n 1 "$tag_ref")
+            if git diff-tree --no-commit-id --name-only -r "$commit_sha" -- ".github/workflows" | grep -q .; then
+              echo "Skipping tag ${tag_ref#refs/tags/} (workflow changes present)"
+              continue
+            fi
+            tags_to_push+=("$tag_ref:$tag_ref")
+          done < <(git for-each-ref --format='%(refname)' refs/tags/upstream)
+
+          if [ ${#tags_to_push[@]} -eq 0 ]; then
+            echo "No tags eligible for push."
+            exit 0
+          fi
+
+          printf '%s\n' "${tags_to_push[@]}" | xargs -n 50 git push origin
+        env:
+          SYNC_TOKEN: ${{ secrets.DEVOLUTIONSBOT_WRITE_TOKEN }}

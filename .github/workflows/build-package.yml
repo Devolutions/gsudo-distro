@@ -1,0 +1,397 @@
+name: build package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'release version'
+        default: "latest"
+        required: true
+      branch:
+        description: 'release branch to build from'
+        default: "release/v2.6.1"
+        required: true
+      skip-publish:
+        description: 'Skip publishing'
+        required: true
+        type: boolean
+        default: false
+      dry-run:
+        description: 'Dry run (simulate)'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-22.04
+    outputs:
+      package-env: ${{ steps.info.outputs.package-env }}
+      package-version: ${{ steps.info.outputs.package-version }}
+      skip-publish: ${{ steps.info.outputs.skip-publish }}
+      dry-run: ${{ steps.info.outputs.dry-run }}
+
+    steps:
+      - name: Package information
+        id: info
+        shell: pwsh
+        run: |
+          $IsMasterBranch = ('${{ github.ref_name }}' -eq 'master')
+          $IsScheduledJob = ('${{ github.event_name }}' -eq 'schedule')
+
+          try { $SkipPublish = [System.Boolean]::Parse('${{ inputs.skip-publish }}') }
+          catch { $SkipPublish = $false }
+          try { $DryRun = [System.Boolean]::Parse('${{ inputs.dry-run }}') }
+          catch { $DryRun = $true }
+
+          $PackageEnv = if ($IsMasterBranch -And -Not $IsScheduledJob) {
+            "publish-prod"
+          } else {
+            "publish-test"
+          }
+
+          if (-Not $IsMasterBranch) {
+            $DryRun = $true # force dry run when not on master branch
+          }
+
+          if ($IsScheduledJob) {
+            $DryRun = $true # force dry run for scheduled runs
+          }
+
+          if (-Not $SkipPublish -And $PackageEnv -ne 'publish-prod') {
+            $DryRun = $true # force dry run when publishing outside production environment
+          }
+
+          $PackageVersion = '${{ inputs.version }}'
+          if ([string]::IsNullOrEmpty($PackageVersion) -or $PackageVersion -eq 'latest') {
+            $PackageVersion = "2.6.1.0"
+          }
+
+          if ($PackageVersion -NotMatch '^\d+\.\d+\.\d+\.\d+$') {
+            throw "invalid version format: $PackageVersion, expected: 1.2.3.4"
+          }
+
+          echo "package-env=$PackageEnv" >> $Env:GITHUB_OUTPUT
+          echo "package-version=$PackageVersion" >> $Env:GITHUB_OUTPUT
+          echo "skip-publish=$($SkipPublish.ToString().ToLower())" >> $Env:GITHUB_OUTPUT
+          echo "dry-run=$($DryRun.ToString().ToLower())" >> $Env:GITHUB_OUTPUT
+
+          echo "::notice::Environment: $PackageEnv"
+          echo "::notice::Version: $PackageVersion"
+          echo "::notice::Branch: ${{ inputs.branch }}"
+          echo "::notice::DryRun: $DryRun"
+
+  build:
+    name: Build [${{ matrix.arch }}]
+    runs-on: windows-2022
+    needs: [preflight]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x64, arm64 ]
+
+    steps:
+      - name: Check out ${{ github.repository }}
+        uses: actions/checkout@v4
+
+      - name: Check out patched source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          path: gsudo-src
+          fetch-depth: 0
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Configure runner
+        shell: pwsh
+        run: |
+          New-Item .\artifacts\gsudo\${{ matrix.arch }} -ItemType Directory -Force | Out-Null
+          New-Item .\artifacts\unielevate\${{ matrix.arch }} -ItemType Directory -Force | Out-Null
+
+      - name: Build gsudo (${{ matrix.arch }})
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          dotnet publish gsudo-src/src/gsudo/gsudo.csproj `
+            -c Release -f net9.0 -r win-${{ matrix.arch }} `
+            -o artifacts/gsudo/${{ matrix.arch }} `
+            /p:Version=$PackageVersion `
+            /p:AssemblyVersion=$PackageVersion `
+            /p:FileVersion=$PackageVersion `
+            /p:InformationalVersion=$PackageVersion
+          if ($LASTEXITCODE -ne 0) { throw "gsudo build failed" }
+
+      - name: Build UniElevate (${{ matrix.arch }})
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          dotnet publish gsudo-src/src/gsudo/gsudo.csproj `
+            -c Release -f net9.0 -r win-${{ matrix.arch }} `
+            -o artifacts/unielevate/${{ matrix.arch }} `
+            -p:BuildVariant=UniElevate `
+            /p:Version=$PackageVersion `
+            /p:AssemblyVersion=$PackageVersion `
+            /p:FileVersion=$PackageVersion `
+            /p:InformationalVersion=$PackageVersion
+          if ($LASTEXITCODE -ne 0) { throw "UniElevate build failed" }
+
+      - name: Copy PowerShell wrappers
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          $MajorMinorPatch = $PackageVersion -Replace '(\d+\.\d+\.\d+)\.\d+', '$1'
+          Copy-Item gsudo-src/src/gsudo.Wrappers/* artifacts/gsudo/${{ matrix.arch }}/ -Force
+          Get-ChildItem artifacts/gsudo/${{ matrix.arch }} -Filter gsudoModule.psd1 | ForEach-Object {
+            (Get-Content $_) -replace '"0.1"', "`"$MajorMinorPatch`"" | Set-Content $_.FullName
+          }
+
+      - name: Upload gsudo (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: gsudo-${{ matrix.arch }}
+          path: artifacts/gsudo/${{ matrix.arch }}
+
+      - name: Upload UniElevate (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: unielevate-${{ matrix.arch }}
+          path: artifacts/unielevate/${{ matrix.arch }}
+
+  package:
+    name: Package and sign
+    runs-on: windows-2022
+    needs: [preflight, build]
+
+    steps:
+      - name: Check out ${{ github.repository }}
+        uses: actions/checkout@v4
+
+      - name: Check out patched source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          path: gsudo-src
+          fetch-depth: 0
+
+      - name: Install code signing tools
+        shell: pwsh
+        run: |
+          dotnet tool install --global AzureSignTool
+
+          # trust test code signing CA
+          $TestCertsUrl = "https://raw.githubusercontent.com/Devolutions/devolutions-authenticode/master/data/certs"
+          Invoke-WebRequest -Uri "$TestCertsUrl/authenticode-test-ca.crt" -OutFile ".\authenticode-test-ca.crt"
+          Import-Certificate -FilePath ".\authenticode-test-ca.crt" -CertStoreLocation "cert:\LocalMachine\Root"
+          Remove-Item ".\authenticode-test-ca.crt" -ErrorAction SilentlyContinue | Out-Null
+
+      - name: Configure runner
+        shell: pwsh
+        run: |
+          New-Item .\package -ItemType Directory -Force | Out-Null
+
+      - name: Download gsudo artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gsudo-*
+          path: artifacts/gsudo
+
+      - name: Download UniElevate artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: unielevate-*
+          path: artifacts/unielevate
+
+      - name: Flatten artifact directories
+        shell: pwsh
+        run: |
+          # download-artifact with pattern creates subdirectories like gsudo-x64/, gsudo-arm64/, etc.
+          # Flatten them so we have artifacts/gsudo/x64/, artifacts/gsudo/arm64/, etc.
+          foreach ($variant in @('gsudo', 'unielevate')) {
+            foreach ($arch in @('x64', 'arm64')) {
+              $src = "artifacts/$variant/$variant-$arch"
+              $dst = "artifacts/$variant/$arch"
+              if (Test-Path $src) {
+                New-Item $dst -ItemType Directory -Force | Out-Null
+                Move-Item "$src/*" $dst -Force
+                Remove-Item $src -Recurse -Force
+              }
+            }
+          }
+
+      - name: Code sign executables
+        shell: pwsh
+        env:
+          CODE_SIGNING_KEYVAULT_URL: ${{ secrets.CODE_SIGNING_KEYVAULT_URL }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:CODE_SIGNING_KEYVAULT_URL)) {
+            Write-Host "Code signing secrets not configured, skipping."
+            return
+          }
+          $Params = @('sign',
+            '-kvt', '${{ secrets.AZURE_TENANT_ID }}',
+            '-kvu', '${{ secrets.CODE_SIGNING_KEYVAULT_URL }}',
+            '-kvi', '${{ secrets.CODE_SIGNING_CLIENT_ID }}',
+            '-kvs', '${{ secrets.CODE_SIGNING_CLIENT_SECRET }}',
+            '-kvc', '${{ secrets.CODE_SIGNING_CERTIFICATE_NAME }}',
+            '-tr', '${{ vars.CODE_SIGNING_TIMESTAMP_SERVER }}',
+            '-v')
+          foreach ($variant in @('gsudo', 'unielevate')) {
+            foreach ($arch in @('x64', 'arm64')) {
+              $binDir = "artifacts/$variant/$arch"
+              Get-ChildItem -Path "$binDir/*" -Include @("*.exe", "*.dll") | ForEach-Object {
+                AzureSignTool @Params $_.FullName
+              }
+            }
+          }
+
+      - name: Create zip packages
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          foreach ($arch in @('x64', 'arm64')) {
+            Compress-Archive "artifacts/gsudo/$arch/*" `
+              "package/gsudo-${PackageVersion}-${arch}.zip" -CompressionLevel Optimal
+            Compress-Archive "artifacts/unielevate/$arch/*" `
+              "package/UniGetUI-Elevator-${PackageVersion}-${arch}.zip" -CompressionLevel Optimal
+          }
+
+      - name: Build NuGet packages
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          dotnet pack nuget/Devolutions.gsudo.csproj -o package /p:Version=$PackageVersion
+          if ($LASTEXITCODE -ne 0) { throw "Devolutions.gsudo NuGet pack failed" }
+          dotnet pack nuget/Devolutions.UniGetUI.Elevator.csproj -o package /p:Version=$PackageVersion
+          if ($LASTEXITCODE -ne 0) { throw "Devolutions.UniGetUI.Elevator NuGet pack failed" }
+
+      - name: Generate squashed patch file
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          $ReleaseBranch = '${{ inputs.branch }}'
+          if ($ReleaseBranch -notmatch '^release/(.+)$') {
+            throw "Unsupported release branch format: $ReleaseBranch"
+          }
+
+          $BaseTag = "upstream/$($Matches[1])"
+          $BaseTagExists = (git -C gsudo-src tag -l $BaseTag)
+          if (-not $BaseTagExists) {
+            throw "Base tag not found in patched source: $BaseTag"
+          }
+
+          $PatchFile = "package/gsudo-patch-$PackageVersion.patch"
+          git -C gsudo-src diff --binary "$BaseTag...HEAD" | Out-File -FilePath $PatchFile -Encoding utf8
+
+          if ((Get-Item $PatchFile).Length -eq 0) {
+            throw "Generated patch file is empty: $PatchFile"
+          }
+
+          Write-Host "Generated patch: $PatchFile"
+
+      - name: Upload zip packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: gsudo-zip
+          path: package/*.zip
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: gsudo-nupkg
+          path: package/*.nupkg
+
+      - name: Upload patch file
+        uses: actions/upload-artifact@v4
+        with:
+          name: gsudo-patch
+          path: package/*.patch
+
+  publish:
+    name: Publish packages
+    runs-on: ubuntu-22.04
+    needs: [preflight, package]
+    if: ${{ fromJSON(needs.preflight.outputs.skip-publish) == false }}
+    environment: ${{ needs.preflight.outputs.package-env }}
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - name: Download zip packages
+        uses: actions/download-artifact@v4
+        with:
+          name: gsudo-zip
+          path: package
+
+      - name: Download NuGet package
+        uses: actions/download-artifact@v4
+        with:
+          name: gsudo-nupkg
+          path: package
+
+      - name: Download patch file
+        uses: actions/download-artifact@v4
+        with:
+          name: gsudo-patch
+          path: package
+
+      - name: NuGet login (OIDC)
+        if: ${{ fromJSON(needs.preflight.outputs.dry-run) == false }}
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_BOT_USERNAME }}
+
+      - name: Publish to nuget.org
+        shell: pwsh
+        run: |
+          $DryRun = [System.Boolean]::Parse('${{ needs.preflight.outputs.dry-run }}')
+          $NugetPackages = Get-Item ./package/*.nupkg
+
+          foreach ($NugetPackage in $NugetPackages) {
+            $PackagePath = $NugetPackage | Resolve-Path -Relative
+            $PushArgs = @(
+              'nuget', 'push', "$PackagePath",
+              '--api-key', '${{ steps.nuget-login.outputs.NUGET_API_KEY }}',
+              '--source', 'https://api.nuget.org/v3/index.json',
+              '--skip-duplicate', '--no-symbols'
+            )
+            Write-Host "dotnet $($PushArgs -Join ' ')"
+            if ($DryRun) {
+              Write-Host "Dry Run: skipping nuget.org publishing!"
+            } else {
+              & 'dotnet' $PushArgs
+            }
+          }
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: package
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          $DryRun = [System.Boolean]::Parse('${{ needs.preflight.outputs.dry-run }}')
+
+          $HashPath = 'checksums'
+          $Files = Get-Item * -Exclude 'checksums' | ForEach-Object { Get-FileHash -Algorithm SHA256 $_.FullName }
+          $Files | ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } | Out-File -FilePath $HashPath -Append -Encoding ASCII
+
+          echo "::group::checksums"
+          Get-Content $HashPath
+          echo "::endgroup::"
+
+          $ReleaseTag = "v$PackageVersion"
+          $ReleaseTitle = "gsudo v${PackageVersion}"
+          $Repository = $Env:GITHUB_REPOSITORY
+
+          if ($DryRun) {
+            Write-Host "Dry Run: skipping GitHub release!"
+          } else {
+            & gh release create $ReleaseTag --repo $Repository --title $ReleaseTitle ./*
+          }

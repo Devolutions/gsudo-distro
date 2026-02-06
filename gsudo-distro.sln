@@ -1,0 +1,36 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{2A18E756-48A1-E247-9A68-57B5E8CBE245}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Devolutions.gsudo", "nuget\Devolutions.gsudo.csproj", "{FE270C81-F032-C773-4881-1D01F513F632}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Devolutions.UniGetUI.Elevator", "nuget\Devolutions.UniGetUI.Elevator.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FE270C81-F032-C773-4881-1D01F513F632}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE270C81-F032-C773-4881-1D01F513F632}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE270C81-F032-C773-4881-1D01F513F632}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE270C81-F032-C773-4881-1D01F513F632}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FE270C81-F032-C773-4881-1D01F513F632} = {2A18E756-48A1-E247-9A68-57B5E8CBE245}
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890} = {2A18E756-48A1-E247-9A68-57B5E8CBE245}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3FF7A569-3677-42DE-A6EA-5A07CEB819AE}
+	EndGlobalSection
+EndGlobal
