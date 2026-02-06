@@ -42,6 +42,8 @@ namespace gsudo
         [
             "CN=Marti Climent Lopez, O=Marti Climent Lopez, L=Barcelona, S=Barcelona, C=ES",
             "CN=\"Open Source Developer, Martí Climent López\", O=Open Source Developer, L=Barcelona, S=Barcelona, C=ES",
+            "E=security@devolutions.net, CN=Devolutions Inc, O=Devolutions Inc, L=Lavaltrie, S=Quebec, C=CA, OID.1.3.6.1.4.1.311.60.2.1.2=Quebec, OID.1.3.6.1.4.1.311.60.2.1.3=CA, SERIALNUMBER=1162544689, OID.2.5.4.15=Private Organization",
+            "E=security@devolutions.net, CN=DEVOLUTIONS INC., O=DEVOLUTIONS INC., L=Lavaltrie, S=Quebec, C=CA, OID.1.3.6.1.4.1.311.60.2.1.2=Quebec, OID.1.3.6.1.4.1.311.60.2.1.3=CA, SERIALNUMBER=1162544689, OID.2.5.4.15=Private Organization",
 #if DEBUG
             // "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
             // "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
