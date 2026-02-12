@@ -33,6 +33,11 @@ jobs:
       dry-run: ${{ steps.info.outputs.dry-run }}
 
     steps:
+      - name: Check out ${{ github.repository }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Package information
         id: info
         shell: pwsh
@@ -63,9 +68,49 @@ jobs:
             $DryRun = $true # force dry run when publishing outside production environment
           }
 
+          $ReleaseBranch = '${{ inputs.branch }}'
+          if ($ReleaseBranch -match '^refs/heads/(.+)$') {
+            $ReleaseBranch = $Matches[1]
+          }
+
+          if ($ReleaseBranch -notmatch '^release/v(\d+\.\d+\.\d+)$') {
+            throw "Unsupported release branch format: $ReleaseBranch (expected release/vX.Y.Z)"
+          }
+
+          $BaseVersion = $Matches[1]
+
           $PackageVersion = '${{ inputs.version }}'
           if ([string]::IsNullOrEmpty($PackageVersion) -or $PackageVersion -eq 'latest') {
-            $PackageVersion = "2.6.1.0"
+            $TagPrefix = "v$BaseVersion"
+
+            git fetch --tags --force | Out-Null
+            $MatchingTags = @(git tag -l "$TagPrefix*" | Sort-Object)
+
+            $Revisions = @()
+            foreach ($Tag in $MatchingTags) {
+              if ($Tag -eq $TagPrefix) {
+                # Optional 3-part tag (vX.Y.Z) is treated as revision 0 baseline.
+                $Revisions += 0
+                continue
+              }
+
+              if ($Tag -match "^v$([regex]::Escape($BaseVersion))\.(\d+)$") {
+                $Revisions += [int]$Matches[1]
+              }
+            }
+
+            if ($Revisions.Count -eq 0) {
+              $NextRevision = 0
+            } else {
+              $NextRevision = ($Revisions | Measure-Object -Maximum).Maximum + 1
+            }
+
+            $PackageVersion = "$BaseVersion.$NextRevision"
+
+            $TagsDisplay = if ($MatchingTags.Count -gt 0) { $MatchingTags -join ', ' } else { '(none)' }
+            echo "::notice::BaseVersion: $BaseVersion"
+            echo "::notice::MatchingTags: $TagsDisplay"
+            echo "::notice::NextRevision: $NextRevision"
           }
 
           if ($PackageVersion -NotMatch '^\d+\.\d+\.\d+\.\d+$') {
@@ -79,6 +124,7 @@ jobs:
 
           echo "::notice::Environment: $PackageEnv"
           echo "::notice::Version: $PackageVersion"
+          echo "::notice::InputVersion: ${{ inputs.version }}"
           echo "::notice::Branch: ${{ inputs.branch }}"
           echo "::notice::DryRun: $DryRun"
 
