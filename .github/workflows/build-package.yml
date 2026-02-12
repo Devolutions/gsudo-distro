@@ -27,6 +27,7 @@ jobs:
     name: Preflight
     runs-on: ubuntu-22.04
     outputs:
+      package-env: ${{ steps.info.outputs.package-env }}
       package-version: ${{ steps.info.outputs.package-version }}
       skip-publish: ${{ steps.info.outputs.skip-publish }}
       dry-run: ${{ steps.info.outputs.dry-run }}
@@ -37,14 +38,29 @@ jobs:
         shell: pwsh
         run: |
           $IsMasterBranch = ('${{ github.ref_name }}' -eq 'master')
+          $IsScheduledJob = ('${{ github.event_name }}' -eq 'schedule')
 
           try { $SkipPublish = [System.Boolean]::Parse('${{ inputs.skip-publish }}') }
           catch { $SkipPublish = $false }
           try { $DryRun = [System.Boolean]::Parse('${{ inputs.dry-run }}') }
           catch { $DryRun = $true }
 
+          $PackageEnv = if ($IsMasterBranch -And -Not $IsScheduledJob) {
+            "publish-prod"
+          } else {
+            "publish-test"
+          }
+
           if (-Not $IsMasterBranch) {
             $DryRun = $true # force dry run when not on master branch
+          }
+
+          if ($IsScheduledJob) {
+            $DryRun = $true # force dry run for scheduled runs
+          }
+
+          if (-Not $SkipPublish -And $PackageEnv -ne 'publish-prod') {
+            $DryRun = $true # force dry run when publishing outside production environment
           }
 
           $PackageVersion = '${{ inputs.version }}'
@@ -56,10 +72,12 @@ jobs:
             throw "invalid version format: $PackageVersion, expected: 1.2.3.4"
           }
 
+          echo "package-env=$PackageEnv" >> $Env:GITHUB_OUTPUT
           echo "package-version=$PackageVersion" >> $Env:GITHUB_OUTPUT
           echo "skip-publish=$($SkipPublish.ToString().ToLower())" >> $Env:GITHUB_OUTPUT
           echo "dry-run=$($DryRun.ToString().ToLower())" >> $Env:GITHUB_OUTPUT
 
+          echo "::notice::Environment: $PackageEnv"
           echo "::notice::Version: $PackageVersion"
           echo "::notice::Branch: ${{ inputs.branch }}"
           echo "::notice::DryRun: $DryRun"
@@ -153,6 +171,13 @@ jobs:
       - name: Check out ${{ github.repository }}
         uses: actions/checkout@v4
 
+      - name: Check out patched source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          path: gsudo-src
+          fetch-depth: 0
+
       - name: Install code signing tools
         shell: pwsh
         run: |
@@ -244,6 +269,30 @@ jobs:
           dotnet pack nuget/Devolutions.UniGetUI.Elevator.csproj -o package /p:Version=$PackageVersion
           if ($LASTEXITCODE -ne 0) { throw "Devolutions.UniGetUI.Elevator NuGet pack failed" }
 
+      - name: Generate squashed patch file
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          $ReleaseBranch = '${{ inputs.branch }}'
+          if ($ReleaseBranch -notmatch '^release/(.+)$') {
+            throw "Unsupported release branch format: $ReleaseBranch"
+          }
+
+          $BaseTag = "upstream/$($Matches[1])"
+          $BaseTagExists = (git -C gsudo-src tag -l $BaseTag)
+          if (-not $BaseTagExists) {
+            throw "Base tag not found in patched source: $BaseTag"
+          }
+
+          $PatchFile = "package/gsudo-patch-$PackageVersion.patch"
+          git -C gsudo-src diff --binary "$BaseTag...HEAD" | Out-File -FilePath $PatchFile -Encoding utf8
+
+          if ((Get-Item $PatchFile).Length -eq 0) {
+            throw "Generated patch file is empty: $PatchFile"
+          }
+
+          Write-Host "Generated patch: $PatchFile"
+
       - name: Upload zip packages
         uses: actions/upload-artifact@v4
         with:
@@ -256,11 +305,18 @@ jobs:
           name: gsudo-nupkg
           path: package/*.nupkg
 
+      - name: Upload patch file
+        uses: actions/upload-artifact@v4
+        with:
+          name: gsudo-patch
+          path: package/*.patch
+
   publish:
     name: Publish packages
     runs-on: ubuntu-22.04
     needs: [preflight, package]
     if: ${{ fromJSON(needs.preflight.outputs.skip-publish) == false }}
+    environment: ${{ needs.preflight.outputs.package-env }}
     permissions:
       id-token: write
       contents: write
@@ -276,6 +332,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: gsudo-nupkg
+          path: package
+
+      - name: Download patch file
+        uses: actions/download-artifact@v4
+        with:
+          name: gsudo-patch
           path: package
 
       - name: NuGet login (OIDC)
