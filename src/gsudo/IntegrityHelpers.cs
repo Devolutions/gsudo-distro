@@ -221,6 +221,11 @@ namespace gsudo
                     return false;
                 }
 
+                if (IsSignedBySameCertificateAsCurrentExecutable(sigInfo))
+                {
+                    return true;
+                }
+
                 bool isValid = RECOGNIZED_CALLER_ASSEMBLY_SUBJECTS.Contains(sigInfo.SigningCertificate.Subject);
                 if (!isValid && isGsudoService)
                 {   // If this is a gsudo service, allow extra caller executables
@@ -235,6 +240,42 @@ namespace gsudo
             }
 
             return true;
+        }
+
+        private static bool IsSignedBySameCertificateAsCurrentExecutable(FileSignatureInfo callerSigInfo)
+        {
+            try
+            {
+                using FileStream currentExeFs = File.OpenRead(Process.GetCurrentProcess().GetExeName());
+                FileSignatureInfo currentExeSigInfo = FileSignatureInfo.GetFromFileStream(currentExeFs);
+                if (currentExeSigInfo.State != SignatureState.SignedAndTrusted)
+                {
+                    Logger.Instance.Log($"Current executable signature is not SignedAndTrusted: {currentExeSigInfo.State}", LogLevel.Warning);
+                    return false;
+                }
+
+                string callerThumbprint = callerSigInfo.SigningCertificate?.Thumbprint?.Replace(" ", string.Empty);
+                string currentThumbprint = currentExeSigInfo.SigningCertificate?.Thumbprint?.Replace(" ", string.Empty);
+
+                if (!string.IsNullOrEmpty(callerThumbprint) &&
+                    !string.IsNullOrEmpty(currentThumbprint) &&
+                    string.Equals(callerThumbprint, currentThumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                string callerSubject = callerSigInfo.SigningCertificate?.Subject;
+                string currentSubject = currentExeSigInfo.SigningCertificate?.Subject;
+
+                return !string.IsNullOrEmpty(callerSubject) &&
+                    !string.IsNullOrEmpty(currentSubject) &&
+                    string.Equals(callerSubject, currentSubject, StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Failed to compare caller signing certificate with current executable: {ex.Message}", LogLevel.Warning);
+                return false;
+            }
         }
 
         public static Process GetParentProcess()
