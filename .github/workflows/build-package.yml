@@ -212,6 +212,7 @@ jobs:
     name: Package and sign
     runs-on: windows-2022
     needs: [preflight, build]
+    environment: ${{ needs.preflight.outputs.package-env }}
 
     steps:
       - name: Check out ${{ github.repository }}
