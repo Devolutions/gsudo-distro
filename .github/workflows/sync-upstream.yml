@@ -12,6 +12,7 @@ jobs:
   sync:
     name: Sync upstream branch and tags
     runs-on: ubuntu-22.04
+    environment: publish-prod
     if: ${{ github.repository_owner == 'Devolutions' }}
 
     steps:
@@ -41,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${SYNC_TOKEN}" ]; then
-            echo "UPSTREAM_SYNC_TOKEN not set; skipping tag synchronization."
+            echo "SYNC_TOKEN not set; skipping tag synchronization."
             exit 0
           fi
 
@@ -66,4 +67,4 @@ jobs:
 
           printf '%s\n' "${tags_to_push[@]}" | xargs -n 50 git push origin
         env:
-          SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+          SYNC_TOKEN: ${{ secrets.DEVOLUTIONSBOT_WRITE_TOKEN }}
