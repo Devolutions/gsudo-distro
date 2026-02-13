@@ -1,18 +1,12 @@
 {
   "iss": "https://devolutions.net/productinfo/codesign-thumbprints",
   "aud": "urn:devolutions:update-clients",
-  "iat": 1771016082,
-  "nbf": 1771016082,
-  "exp": 1771620882,
+  "iat": 1771018975,
+  "nbf": 1771018975,
+  "exp": 1771623775,
   "ver": "1",
   "thumbprints": [
-    {
-      "x5t": "jbWkO7iv5NL_uS2pAH2Jl6TMThM",
-      "x5t#S256": "9JNTsMYSqyIMVujZox0EYoywHJyOiBgoClu48ptAYlY"
-    },
-    {
-      "x5t": "UPdTMzgR_xHxkgJ0r94__URoshA",
-      "x5t#S256": "1JFZbB6O7-m_LwmcMK6qorxjehm2AoDb2ZjXDl1cjYQ"
-    }
+    "50F753333811FF11F1920274AFDE3FFD4468B210",
+    "8DB5A43BB8AFE4D2FFB92DA9007D8997A4CC4E13"
   ]
 }

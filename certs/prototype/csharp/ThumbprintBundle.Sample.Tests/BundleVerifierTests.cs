@@ -18,11 +18,12 @@ public sealed class BundleVerifierTests
         Assert.Equal(BundleVerifier.DefaultIssuer, claims.Issuer);
         Assert.Equal(BundleVerifier.DefaultAudience, claims.Audience);
         Assert.Equal(2, claims.Thumbprints.Count);
-        Assert.All(claims.Thumbprints, entry =>
-        {
-            Assert.False(string.IsNullOrWhiteSpace(entry.X5t));
-            Assert.False(string.IsNullOrWhiteSpace(entry.X5tS256));
-        });
+        Assert.All(claims.Thumbprints, entry => Assert.Matches("^[0-9A-F]{40}$", entry));
+
+        var newestThumbprint = BundleVerifier.ComputeSha1ThumbprintHexFromCertificateFile(paths.Cert2025Path);
+        var olderThumbprint = BundleVerifier.ComputeSha1ThumbprintHexFromCertificateFile(paths.Cert2023Path);
+        Assert.Equal(newestThumbprint, claims.Thumbprints[0]);
+        Assert.Equal(olderThumbprint, claims.Thumbprints[1]);
     }
 
     [Fact]
@@ -52,23 +53,18 @@ public sealed class BundleVerifierTests
     }
 
     [Fact]
-    public void X5tAndHex_ConvertRoundtrip()
+    public void ComputedSha1Thumbprints_ArePresentInBundle()
     {
         var paths = ResolvePaths();
         var jwt = File.ReadAllText(paths.BundlePath).Trim();
         var publicKeyPem = File.ReadAllText(paths.PublicKeyPath);
         var claims = BundleVerifier.VerifyToken(jwt, publicKeyPem);
 
-        foreach (var entry in claims.Thumbprints)
-        {
-            var sha1Hex = BundleVerifier.X5tToWindowsThumbprintHex(entry.X5t);
-            var sha1X5tRoundtrip = BundleVerifier.WindowsThumbprintHexToX5t(sha1Hex);
-            Assert.Equal(entry.X5t, sha1X5tRoundtrip);
+        var cert2025Thumbprint = BundleVerifier.ComputeSha1ThumbprintHexFromCertificateFile(paths.Cert2025Path);
+        var cert2023Thumbprint = BundleVerifier.ComputeSha1ThumbprintHexFromCertificateFile(paths.Cert2023Path);
 
-            var sha256Hex = BundleVerifier.X5tS256ToHex(entry.X5tS256);
-            var sha256X5tRoundtrip = BundleVerifier.HexToX5tS256(sha256Hex);
-            Assert.Equal(entry.X5tS256, sha256X5tRoundtrip);
-        }
+        Assert.Contains(cert2025Thumbprint, claims.Thumbprints);
+        Assert.Contains(cert2023Thumbprint, claims.Thumbprints);
     }
 
     private static (string BundlePath, string PublicKeyPath, string Cert2023Path, string Cert2025Path) ResolvePaths()

@@ -81,51 +81,14 @@ public static class BundleVerifier
 
     public static bool IsCertificateAllowed(string certificatePath, ThumbprintBundleClaims claims)
     {
-        var x5t = ComputeX5tFromCertificateFile(certificatePath);
-        var x5tS256 = ComputeX5tS256FromCertificateFile(certificatePath);
-
-        return claims.Thumbprints.Any(x =>
-            string.Equals(x.X5t, x5t, StringComparison.Ordinal) &&
-            string.Equals(x.X5tS256, x5tS256, StringComparison.Ordinal));
+        var thumbprintHex = ComputeSha1ThumbprintHexFromCertificateFile(certificatePath);
+        return claims.Thumbprints.Any(x => string.Equals(x, thumbprintHex, StringComparison.Ordinal));
     }
 
-    public static string ComputeX5tFromCertificateFile(string certificatePath)
+    public static string ComputeSha1ThumbprintHexFromCertificateFile(string certificatePath)
     {
         using var cert = X509CertificateLoader.LoadCertificateFromFile(certificatePath);
         var sha1Bytes = cert.GetCertHash(HashAlgorithmName.SHA1);
-        return Base64UrlEncoder.Encode(sha1Bytes);
-    }
-
-    public static string ComputeX5tS256FromCertificateFile(string certificatePath)
-    {
-        using var cert = X509CertificateLoader.LoadCertificateFromFile(certificatePath);
-        var sha256Bytes = cert.GetCertHash(HashAlgorithmName.SHA256);
-        return Base64UrlEncoder.Encode(sha256Bytes);
-    }
-
-    public static string X5tToWindowsThumbprintHex(string x5t)
-    {
-        var bytes = Base64UrlEncoder.DecodeBytes(x5t);
-        return Convert.ToHexString(bytes);
-    }
-
-    public static string WindowsThumbprintHexToX5t(string thumbprintHex)
-    {
-        var normalized = thumbprintHex.Replace(" ", string.Empty).Replace(":", string.Empty).ToUpperInvariant();
-        var bytes = Convert.FromHexString(normalized);
-        return Base64UrlEncoder.Encode(bytes);
-    }
-
-    public static string X5tS256ToHex(string x5tS256)
-    {
-        var bytes = Base64UrlEncoder.DecodeBytes(x5tS256);
-        return Convert.ToHexString(bytes);
-    }
-
-    public static string HexToX5tS256(string sha256Hex)
-    {
-        var normalized = sha256Hex.Replace(" ", string.Empty).Replace(":", string.Empty).ToUpperInvariant();
-        var bytes = Convert.FromHexString(normalized);
-        return Base64UrlEncoder.Encode(bytes);
+        return Convert.ToHexString(sha1Bytes);
     }
 }

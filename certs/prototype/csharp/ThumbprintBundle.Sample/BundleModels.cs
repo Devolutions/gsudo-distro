@@ -23,14 +23,5 @@ public sealed class ThumbprintBundleClaims
     public string Version { get; set; } = string.Empty;
 
     [JsonPropertyName("thumbprints")]
-    public List<ThumbprintEntry> Thumbprints { get; set; } = new();
-}
-
-public sealed class ThumbprintEntry
-{
-    [JsonPropertyName("x5t")]
-    public string X5t { get; set; } = string.Empty;
-
-    [JsonPropertyName("x5t#S256")]
-    public string X5tS256 { get; set; } = string.Empty;
+    public List<string> Thumbprints { get; set; } = new();
 }

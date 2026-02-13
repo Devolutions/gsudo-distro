@@ -1,10 +1,7 @@
 use anyhow::{anyhow, Context, Result};
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use sha1::{Digest as Sha1Digest, Sha1};
-use sha2::Sha256;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -20,14 +17,7 @@ pub struct ThumbprintBundleClaims {
     pub nbf: u64,
     pub exp: u64,
     pub ver: String,
-    pub thumbprints: Vec<ThumbprintEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThumbprintEntry {
-    pub x5t: String,
-    #[serde(rename = "x5t#S256")]
-    pub x5t_s256: String,
+    pub thumbprints: Vec<String>,
 }
 
 pub fn verify_bundle(jwt: &str, public_key_pem: &str, issuer: &str, audience: &str) -> Result<ThumbprintBundleClaims> {
@@ -53,55 +43,16 @@ pub fn verify_bundle(jwt: &str, public_key_pem: &str, issuer: &str, audience: &s
     Ok(token_data.claims)
 }
 
-pub fn compute_x5t_from_certificate_file(path: &Path) -> Result<String> {
+pub fn compute_sha1_thumbprint_hex_from_certificate_file(path: &Path) -> Result<String> {
     let cert_der = fs::read(path).with_context(|| format!("Failed to read certificate: {}", path.display()))?;
     let mut hasher = Sha1::new();
     hasher.update(cert_der);
-    Ok(base64url_encode(&hasher.finalize()))
-}
-
-pub fn compute_x5t_s256_from_certificate_file(path: &Path) -> Result<String> {
-    let cert_der = fs::read(path).with_context(|| format!("Failed to read certificate: {}", path.display()))?;
-    let digest = Sha256::digest(cert_der);
-    Ok(base64url_encode(&digest))
+    Ok(hex::encode_upper(hasher.finalize()))
 }
 
 pub fn is_certificate_allowed(path: &Path, claims: &ThumbprintBundleClaims) -> Result<bool> {
-    let x5t = compute_x5t_from_certificate_file(path)?;
-    let x5t_s256 = compute_x5t_s256_from_certificate_file(path)?;
-
-    Ok(claims
-        .thumbprints
-        .iter()
-        .any(|entry| entry.x5t == x5t && entry.x5t_s256 == x5t_s256))
-}
-
-pub fn x5t_to_windows_thumbprint_hex(x5t: &str) -> Result<String> {
-    let bytes = URL_SAFE_NO_PAD
-        .decode(x5t)
-        .with_context(|| format!("Invalid base64url x5t value: {x5t}"))?;
-    Ok(hex::encode_upper(bytes))
-}
-
-pub fn windows_thumbprint_hex_to_x5t(hex_value: &str) -> Result<String> {
-    let normalized = hex_value.replace([' ', ':'], "").to_uppercase();
-    let bytes = hex::decode(&normalized)
-        .with_context(|| format!("Invalid hex thumbprint value: {hex_value}"))?;
-    Ok(base64url_encode(&bytes))
-}
-
-pub fn x5t_s256_to_hex(x5t_s256: &str) -> Result<String> {
-    let bytes = URL_SAFE_NO_PAD
-        .decode(x5t_s256)
-        .with_context(|| format!("Invalid base64url x5t#S256 value: {x5t_s256}"))?;
-    Ok(hex::encode_upper(bytes))
-}
-
-pub fn hex_to_x5t_s256(hex_value: &str) -> Result<String> {
-    let normalized = hex_value.replace([' ', ':'], "").to_uppercase();
-    let bytes = hex::decode(&normalized)
-        .with_context(|| format!("Invalid hex SHA-256 thumbprint value: {hex_value}"))?;
-    Ok(base64url_encode(&bytes))
+    let thumbprint_hex = compute_sha1_thumbprint_hex_from_certificate_file(path)?;
+    Ok(claims.thumbprints.iter().any(|entry| entry == &thumbprint_hex))
 }
 
 pub fn find_prototype_root(start: &Path) -> Result<&Path> {
@@ -116,8 +67,4 @@ pub fn find_prototype_root(start: &Path) -> Result<&Path> {
     }
 
     Err(anyhow!("Could not locate certs/prototype root"))
-}
-
-fn base64url_encode(bytes: &[u8]) -> String {
-    URL_SAFE_NO_PAD.encode(bytes)
 }

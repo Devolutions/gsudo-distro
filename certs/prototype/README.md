@@ -6,7 +6,7 @@ The design uses:
 
 - A **baked-in JWT** shipped inside the app (offline baseline trust)
 - An **online JWT** fetched from Devolutions infrastructure (fresh trust data)
-- A compact thumbprint payload (`x5t`, `x5t#S256`) for certificate pinning
+- A compact thumbprint-only payload (ordered newest certificate to oldest)
 
 The objective is to let older app versions recognize newer code-signing certificates early enough to install updates signed with those newer certificates.
 
@@ -60,9 +60,7 @@ If a new app version is signed with a newly issued code-signing certificate not 
 - `aud`: `urn:devolutions:update-clients`
 - `iat` / `nbf` / `exp`: UNIX epoch seconds
 - `ver`: bundle schema/version string
-- `thumbprints[]`: minimal certificate pinning entries only:
-  - `x5t`: SHA-1 certificate thumbprint in base64url
-  - `x5t#S256`: SHA-256 certificate thumbprint in base64url
+- `thumbprints[]`: ordered SHA-1 thumbprints only (`newest -> oldest`), uppercase hex, no extra fields
 
 Example payload:
 
@@ -75,14 +73,8 @@ Example payload:
   "exp": 1786567451,
   "ver": "1",
   "thumbprints": [
-    {
-      "x5t": "jbWkO7iv5NL_uS2pAH2Jl6TMThM",
-      "x5t#S256": "9JNTsMYSqyIMVujZox0EYoywHJyOiBgoClu48ptAYlY"
-    },
-    {
-      "x5t": "UPdTMzgR_xHxkgJ0r94__URoshA",
-      "x5t#S256": "1JFZbB6O7-m_LwmcMK6qorxjehm2AoDb2ZjXDl1cjYQ"
-    }
+    "50F753333811FF11F1920274AFDE3FFD4468B210",
+    "8DB5A43BB8AFE4D2FFB92DA9007D8997A4CC4E13"
   ]
 }
 ```
@@ -94,42 +86,9 @@ The bundle currently includes thumbprints extracted from:
 
 Notes:
 
-- `x5t` = SHA-1 cert thumbprint in base64url (compatible with Windows thumbprint value after encoding conversion).
-- `x5t#S256` = SHA-256 cert thumbprint in base64url.
 - Signature algorithm is `RS256` in this prototype.
-
-## Thumbprint compatibility
-
-Windows APIs usually expect/show SHA-1 thumbprints as uppercase hex (no separators).
-
-Conversion rule:
-
-1. Base64url-decode `x5t` bytes
-2. Hex-encode bytes in uppercase
-
-Real examples from this prototype:
-
-- `jbWkO7iv5NL_uS2pAH2Jl6TMThM` -> `8DB5A43BB8AFE4D2FFB92DA9007D8997A4CC4E13`
-- `UPdTMzgR_xHxkgJ0r94__URoshA` -> `50F753333811FF11F1920274AFDE3FFD4468B210`
-
-PowerShell example:
-
-```powershell
-$x5t = "jbWkO7iv5NL_uS2pAH2Jl6TMThM"
-$b64 = $x5t.Replace('-', '+').Replace('_', '/')
-switch ($b64.Length % 4) { 2 { $b64 += '==' }; 3 { $b64 += '=' } }
-$bytes = [Convert]::FromBase64String($b64)
-[Convert]::ToHexString($bytes)
-```
-
-C# example:
-
-```csharp
-using Microsoft.IdentityModel.Tokens;
-
-var x5t = "jbWkO7iv5NL_uS2pAH2Jl6TMThM";
-var windowsSha1 = Convert.ToHexString(Base64UrlEncoder.DecodeBytes(x5t));
-```
+- Thumbprints are stored in Windows-compatible SHA-1 uppercase hex format.
+- `thumbprints[0]` is the newest signing certificate; later entries are older certificates retained for overlap windows.
 
 ## End-to-end flow
 
@@ -165,7 +124,7 @@ sequenceDiagram
 
 ### Before signing with a new certificate
 
-- Add the new cert thumbprints (`x5t`, `x5t#S256`) to the online JWT.
+- Add the new cert SHA-1 thumbprint at index `0` in `thumbprints`.
 - Keep old certificate thumbprints present during transition.
 - Publish JWT and verify clients accept it.
 
@@ -198,8 +157,7 @@ sequenceDiagram
 
 Recommended publication endpoints:
 
-- `https://devolutions.net/productinfo/codesign.jwt`
-- `https://devolutions.net/productinfo/codesign.jwks.json`
+- `https://devolutions.net/productinfo.json`
 
 Recommended online token validity:
 
@@ -223,6 +181,47 @@ Failure behavior:
 - If refresh fails and online token age is `> 24 hours`, stop trusting cached online token and use baked token only.
 - If no valid online token is available, fall back to baked-in token.
 - Do not fail update checks solely because online fetch is unavailable.
+
+## Single-call `productinfo.json` design
+
+If all auto-update clients already fetch `productinfo.json`, you can embed code-signing trust data in that same response and avoid extra calls.
+
+### Proposed concise shape
+
+```json
+{
+  "product": {
+    "version": "X.Y.Z",
+    "url": "https://.../package.zip",
+    "sha256": "..."
+  },
+  "codesign": {
+    "v": 1,
+    "bundle": "<compact JWT with thumbprints claim only>"
+  }
+}
+```
+
+`codesign.bundle` is verified using a public key pinned in the app. The key is not distributed in `productinfo.json`.
+
+### Client validation order (single call)
+
+1. Fetch `productinfo.json`.
+2. Verify `codesign.bundle` using the pinned verification key.
+3. Validate `iss`/`aud`/`nbf`/`exp` from bundle.
+4. Validate update signer SHA-1 thumbprint against `thumbprints[]` (ordered newest to oldest).
+
+### Caching guidance
+
+- Keep `bundle` validity at `7 days`.
+- Attempt refresh every `6 hours` while app is running.
+- If `productinfo.json` fetch fails and cached online trust data is older than `24 hours`, use baked baseline only.
+
+### Compatibility mapping
+
+- Bundle payload contains only ordered SHA-1 thumbprints.
+- Verifier still checks signature and standard claims before trust.
+- No secondary online key distribution step is required.
 
 ## Effective allowlist resolution
 

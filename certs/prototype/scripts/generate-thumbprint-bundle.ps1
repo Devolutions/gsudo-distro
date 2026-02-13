@@ -73,24 +73,29 @@ $spkiHash = [System.Security.Cryptography.SHA256]::HashData($rsaSigner.ExportSub
 $kidBytes = $spkiHash[0..15]
 $kid = ConvertTo-Base64Url -Bytes $kidBytes
 
-$thumbprints = @()
+$thumbprintRows = @()
 foreach ($certPath in $CertPaths) {
     $resolvedCertPath = (Resolve-Path $certPath).Path
     $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($resolvedCertPath)
 
     try {
         $sha1Bytes = $cert.GetCertHash([System.Security.Cryptography.HashAlgorithmName]::SHA1)
-        $sha256Bytes = $cert.GetCertHash([System.Security.Cryptography.HashAlgorithmName]::SHA256)
 
-        $thumbprints += [ordered]@{
-            x5t = ConvertTo-Base64Url -Bytes $sha1Bytes
-            "x5t#S256" = ConvertTo-Base64Url -Bytes $sha256Bytes
+        $thumbprintRows += [PSCustomObject]@{
+            NotBefore = $cert.NotBefore
+            ThumbprintHex = [Convert]::ToHexString($sha1Bytes)
         }
     }
     finally {
         $cert.Dispose()
     }
 }
+
+$thumbprints = @(
+    $thumbprintRows |
+    Sort-Object -Property NotBefore -Descending |
+    Select-Object -ExpandProperty ThumbprintHex -Unique
+)
 
 $now = [DateTimeOffset]::UtcNow
 $payload = [ordered]@{

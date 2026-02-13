@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 use thumbprint_bundle_sample::{
-    find_prototype_root, is_certificate_allowed, verify_bundle, windows_thumbprint_hex_to_x5t,
-    x5t_s256_to_hex, x5t_to_windows_thumbprint_hex, DEFAULT_AUDIENCE, DEFAULT_ISSUER,
+    compute_sha1_thumbprint_hex_from_certificate_file, find_prototype_root, is_certificate_allowed,
+    verify_bundle, DEFAULT_AUDIENCE, DEFAULT_ISSUER,
 };
 
 fn fixture_paths() -> (String, String, std::path::PathBuf, std::path::PathBuf) {
@@ -19,12 +19,18 @@ fn fixture_paths() -> (String, String, std::path::PathBuf, std::path::PathBuf) {
 
 #[test]
 fn valid_bundle_verifies_and_contains_two_entries() {
-    let (bundle, public_key, _, _) = fixture_paths();
+    let (bundle, public_key, cert_2023, cert_2025) = fixture_paths();
     let claims = verify_bundle(bundle.trim(), &public_key, DEFAULT_ISSUER, DEFAULT_AUDIENCE).unwrap();
 
     assert_eq!(claims.iss, DEFAULT_ISSUER);
     assert_eq!(claims.aud, DEFAULT_AUDIENCE);
     assert_eq!(claims.thumbprints.len(), 2);
+    assert!(claims.thumbprints.iter().all(|entry| entry.len() == 40 && entry.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase())));
+
+    let newest_thumbprint = compute_sha1_thumbprint_hex_from_certificate_file(&cert_2025).unwrap();
+    let older_thumbprint = compute_sha1_thumbprint_hex_from_certificate_file(&cert_2023).unwrap();
+    assert_eq!(claims.thumbprints[0], newest_thumbprint);
+    assert_eq!(claims.thumbprints[1], older_thumbprint);
 }
 
 #[test]
@@ -48,16 +54,13 @@ fn tampered_token_fails_validation() {
 }
 
 #[test]
-fn x5t_and_hex_roundtrip() {
-    let (bundle, public_key, _, _) = fixture_paths();
+fn computed_sha1_thumbprints_are_present_in_bundle() {
+    let (bundle, public_key, cert_2023, cert_2025) = fixture_paths();
     let claims = verify_bundle(bundle.trim(), &public_key, DEFAULT_ISSUER, DEFAULT_AUDIENCE).unwrap();
 
-    for entry in claims.thumbprints {
-        let sha1_hex = x5t_to_windows_thumbprint_hex(&entry.x5t).unwrap();
-        let x5t_roundtrip = windows_thumbprint_hex_to_x5t(&sha1_hex).unwrap();
-        assert_eq!(entry.x5t, x5t_roundtrip);
+    let cert2025_thumbprint = compute_sha1_thumbprint_hex_from_certificate_file(&cert_2025).unwrap();
+    let cert2023_thumbprint = compute_sha1_thumbprint_hex_from_certificate_file(&cert_2023).unwrap();
 
-        let sha256_hex = x5t_s256_to_hex(&entry.x5t_s256).unwrap();
-        assert_eq!(sha256_hex.len(), 64);
-    }
+    assert!(claims.thumbprints.contains(&cert2025_thumbprint));
+    assert!(claims.thumbprints.contains(&cert2023_thumbprint));
 }
