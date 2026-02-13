@@ -1,0 +1,186 @@
+{
+  "format": 1,
+  "restore": {
+    "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample.Tests\\ThumbprintBundle.Sample.Tests.csproj": {}
+  },
+  "projects": {
+    "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample.Tests\\ThumbprintBundle.Sample.Tests.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample.Tests\\ThumbprintBundle.Sample.Tests.csproj",
+        "projectName": "ThumbprintBundle.Sample.Tests",
+        "projectPath": "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample.Tests\\ThumbprintBundle.Sample.Tests.csproj",
+        "packagesPath": "D:\\dev\\caches\\nuget",
+        "outputPath": "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample.Tests\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\mamoreau\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "C:\\Users\\mamoreau\\Documents\\RDCore\\rdcore-nuget": {},
+          "D:\\dev\\iap-desktop\\dependencies\\NuGetPackages": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/09213ef7-9adf-4ab5-8bea-71196be6b945": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/7386ca94-b6da-4c88-9db8-9490632c5d79": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/a0b33426-9a53-4dd8-9a96-3de6424e92ff": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/cf5e9955-cd5c-44da-b6f6-bb9402030ac0": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/f5275e08-0652-4a1b-8c73-fea082523d53": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://devolutions.jfrog.io/devolutions/api/nuget/nuget": {},
+          "https://nuget.devexpress.com/reRAWVoyhMG9tk6NU8TrUpsEDVUXP1g3MwI4h7ZWIJEw9o5ow6/api/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample\\ThumbprintBundle.Sample.csproj": {
+                "projectPath": "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample\\ThumbprintBundle.Sample.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "11.0.100"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.13.0, )"
+            },
+            "xunit": {
+              "target": "Package",
+              "version": "[2.9.3, )"
+            },
+            "xunit.runner.visualstudio": {
+              "target": "Package",
+              "version": "[2.8.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\11.0.100-preview.1.26104.118/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample\\ThumbprintBundle.Sample.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample\\ThumbprintBundle.Sample.csproj",
+        "projectName": "ThumbprintBundle.Sample",
+        "projectPath": "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample\\ThumbprintBundle.Sample.csproj",
+        "packagesPath": "D:\\dev\\caches\\nuget",
+        "outputPath": "D:\\dev\\gsudo-distro\\certs\\prototype\\csharp\\ThumbprintBundle.Sample\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\mamoreau\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "C:\\Users\\mamoreau\\Documents\\RDCore\\rdcore-nuget": {},
+          "D:\\dev\\iap-desktop\\dependencies\\NuGetPackages": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/09213ef7-9adf-4ab5-8bea-71196be6b945": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/7386ca94-b6da-4c88-9db8-9490632c5d79": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/a0b33426-9a53-4dd8-9a96-3de6424e92ff": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/cf5e9955-cd5c-44da-b6f6-bb9402030ac0": {},
+          "file:///C:/Users/mamoreau/AppData/Local/Temp/f5275e08-0652-4a1b-8c73-fea082523d53": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://devolutions.jfrog.io/devolutions/api/nuget/nuget": {},
+          "https://nuget.devexpress.com/reRAWVoyhMG9tk6NU8TrUpsEDVUXP1g3MwI4h7ZWIJEw9o5ow6/api/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "11.0.100"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.14.0, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.14.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\11.0.100-preview.1.26104.118/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
