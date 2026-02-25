@@ -113,6 +113,22 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      - name: Generate fallback GitVersion info
+        shell: pwsh
+        run: |
+          $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          $GitVersionFallback = @"
+          namespace gsudo.Commands
+          {
+              internal static class GitVersionInformation
+              {
+                  public static string FullSemVer => \"$PackageVersion\";
+                  public static string FullBuildMetaData => \"$PackageVersion\";
+              }
+          }
+          "@
+          Set-Content -Path "gsudo-src/src/gsudo/Commands/GitVersionInformation.Fallback.g.cs" -Value $GitVersionFallback -Encoding utf8
+
       - name: Configure runner
         shell: pwsh
         run: |
