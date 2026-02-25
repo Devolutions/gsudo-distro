@@ -128,6 +128,7 @@ jobs:
           dotnet publish gsudo-src/src/gsudo/gsudo.csproj `
             -c Release -f net9.0 -r win-${{ matrix.arch }} `
             -o artifacts/gsudo/${{ matrix.arch }} `
+            /p:DisableGitVersionTask=true `
             /p:Version=$PackageVersion `
             /p:AssemblyVersion=$PackageVersion `
             /p:FileVersion=$PackageVersion `
@@ -144,6 +145,7 @@ jobs:
             -c Release -f net9.0 -r win-${{ matrix.arch }} `
             -o artifacts/unielevate/${{ matrix.arch }} `
             -p:BuildVariant=UniElevate `
+            /p:DisableGitVersionTask=true `
             /p:Version=$PackageVersion `
             /p:AssemblyVersion=$PackageVersion `
             /p:FileVersion=$PackageVersion `
