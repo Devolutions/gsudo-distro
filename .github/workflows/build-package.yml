@@ -122,8 +122,8 @@ jobs:
           {
               internal static class GitVersionInformation
               {
-                  public static string FullSemVer => \"$PackageVersion\";
-                  public static string FullBuildMetaData => \"$PackageVersion\";
+                public static string FullSemVer => "$PackageVersion";
+                public static string FullBuildMetaData => "$PackageVersion";
               }
           }
           "@
