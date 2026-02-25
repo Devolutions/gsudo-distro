@@ -37,7 +37,13 @@ jobs:
         id: info
         shell: pwsh
         run: |
-          $IsMasterBranch = ('${{ github.ref_name }}' -eq 'master')
+          $TargetBranch = '${{ inputs.branch }}'
+          if ([string]::IsNullOrWhiteSpace($TargetBranch)) {
+            $TargetBranch = '${{ github.ref_name }}'
+          }
+          $TargetBranch = $TargetBranch -replace '^refs/heads/', ''
+
+          $IsMasterBranch = ($TargetBranch -eq 'master')
           $IsScheduledJob = ('${{ github.event_name }}' -eq 'schedule')
 
           try { $SkipPublish = [System.Boolean]::Parse('${{ inputs.skip-publish }}') }
@@ -79,7 +85,7 @@ jobs:
 
           echo "::notice::Environment: $PackageEnv"
           echo "::notice::Version: $PackageVersion"
-          echo "::notice::Branch: ${{ inputs.branch }}"
+          echo "::notice::Branch: $TargetBranch"
           echo "::notice::DryRun: $DryRun"
 
   build:
@@ -117,6 +123,8 @@ jobs:
         shell: pwsh
         run: |
           $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          $env:GITHUB_REF = 'refs/heads/${{ inputs.branch }}'
+          $env:GITHUB_REF_NAME = '${{ inputs.branch }}'
           dotnet publish gsudo-src/src/gsudo/gsudo.csproj `
             -c Release -f net9.0 -r win-${{ matrix.arch }} `
             -o artifacts/gsudo/${{ matrix.arch }} `
@@ -130,6 +138,8 @@ jobs:
         shell: pwsh
         run: |
           $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
+          $env:GITHUB_REF = 'refs/heads/${{ inputs.branch }}'
+          $env:GITHUB_REF_NAME = '${{ inputs.branch }}'
           dotnet publish gsudo-src/src/gsudo/gsudo.csproj `
             -c Release -f net9.0 -r win-${{ matrix.arch }} `
             -o artifacts/unielevate/${{ matrix.arch }} `
