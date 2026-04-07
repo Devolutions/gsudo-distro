@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Check out ${{ github.repository }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -139,17 +139,17 @@ jobs:
 
     steps:
       - name: Check out ${{ github.repository }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check out patched source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch }}
           path: gsudo-src
           fetch-depth: 0
 
       - name: Setup .NET 9.0
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '9.0.x'
 
@@ -197,13 +197,13 @@ jobs:
           }
 
       - name: Upload gsudo (${{ matrix.arch }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gsudo-${{ matrix.arch }}
           path: artifacts/gsudo/${{ matrix.arch }}
 
       - name: Upload UniElevate (${{ matrix.arch }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unielevate-${{ matrix.arch }}
           path: artifacts/unielevate/${{ matrix.arch }}
@@ -216,10 +216,10 @@ jobs:
 
     steps:
       - name: Check out ${{ github.repository }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check out patched source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch }}
           path: gsudo-src
@@ -242,13 +242,13 @@ jobs:
           New-Item .\package -ItemType Directory -Force | Out-Null
 
       - name: Download gsudo artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: gsudo-*
           path: artifacts/gsudo
 
       - name: Download UniElevate artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: unielevate-*
           path: artifacts/unielevate
@@ -341,19 +341,19 @@ jobs:
           Write-Host "Generated patch: $PatchFile"
 
       - name: Upload zip packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gsudo-zip
           path: package/*.zip
 
       - name: Upload NuGet packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gsudo-nupkg
           path: package/*.nupkg
 
       - name: Upload patch file
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gsudo-patch
           path: package/*.patch
@@ -370,19 +370,19 @@ jobs:
 
     steps:
       - name: Download zip packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: gsudo-zip
           path: package
 
       - name: Download NuGet package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: gsudo-nupkg
           path: package
 
       - name: Download patch file
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: gsudo-patch
           path: package
