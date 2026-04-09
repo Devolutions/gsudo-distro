@@ -8,8 +8,22 @@
       <Visible>false</Visible>
       <Pack>false</Pack>
     </Content>
+    <Content Include="$(MSBuildThisFileDirectory)\..\runtimes\win-x64\native\getfilesiginforedist.dll">
+      <Link>runtimes\win-x64\native\getfilesiginforedist.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <PublishState>Included</PublishState>
+      <Visible>false</Visible>
+      <Pack>false</Pack>
+    </Content>
     <Content Include="$(MSBuildThisFileDirectory)\..\runtimes\win-arm64\native\UniGetUI Elevator.exe">
       <Link>runtimes\win-arm64\native\UniGetUI Elevator.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <PublishState>Included</PublishState>
+      <Visible>false</Visible>
+      <Pack>false</Pack>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)\..\runtimes\win-arm64\native\getfilesiginforedist.dll">
+      <Link>runtimes\win-arm64\native\getfilesiginforedist.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <PublishState>Included</PublishState>
       <Visible>false</Visible>
