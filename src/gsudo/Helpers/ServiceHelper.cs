@@ -191,7 +191,8 @@ namespace gsudo.Helpers
                     {
                         // UAC Popup doesnt always have focus, so we try to bring it to the front.
                         UACWindowFocusHelper.StartBackgroundThreadToFocusUacWindow();
-                        ret = ProcessFactory.StartElevatedDetached(ownExe, commandLine, !InputArguments.Debug).GetSafeProcessHandle();
+                        ProcessFactory.StartElevatedDetached(ownExe, commandLine, !InputArguments.Debug);
+                        ret = null;
                     }
                     else
                     {
@@ -203,7 +204,8 @@ namespace gsudo.Helpers
             {
                 // UAC Popup doesnt always have focus, so we try to bring it to the front.
                 UACWindowFocusHelper.StartBackgroundThreadToFocusUacWindow();
-                ret = ProcessFactory.StartElevatedDetached(ownExe, commandLine, !InputArguments.Debug).GetSafeProcessHandle();
+                ProcessFactory.StartElevatedDetached(ownExe, commandLine, !InputArguments.Debug);
+                ret = null;
             }
 
             Logger.Instance.Log("Service process started.", LogLevel.Debug);
