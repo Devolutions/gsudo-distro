@@ -398,6 +398,18 @@ jobs:
             }
           }
 
+      - name: Upload signed gsudo binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: gsudo-signed-binaries
+          path: artifacts/gsudo/*
+
+      - name: Upload signed UniElevate binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: unielevate-signed-binaries
+          path: artifacts/unielevate/*
+
       - name: Create zip packages
         shell: pwsh
         run: |
