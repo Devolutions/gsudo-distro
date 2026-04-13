@@ -4,13 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'release version'
-        default: "latest"
-        required: true
+        description: 'package version (blank = infer next revision from release/vX.Y.Z branch)'
+        default: ""
+        required: false
       branch:
-        description: 'release branch to build from'
+        description: 'branch to build from'
         default: "release/v2.6.1"
         required: true
+      github-env:
+        description: 'GitHub environment selection'
+        required: true
+        type: choice
+        options:
+          - auto
+          - test
+          - prod
+        default: auto
       skip-publish:
         description: 'Skip publishing'
         required: true
@@ -27,6 +36,7 @@ jobs:
     name: Preflight
     runs-on: ubuntu-22.04
     outputs:
+      base-version: ${{ steps.info.outputs.base-version }}
       package-env: ${{ steps.info.outputs.package-env }}
       package-version: ${{ steps.info.outputs.package-version }}
       skip-publish: ${{ steps.info.outputs.skip-publish }}
@@ -50,14 +60,65 @@ jobs:
           try { $DryRun = [System.Boolean]::Parse('${{ inputs.dry-run }}') }
           catch { $DryRun = $true }
 
-          $PackageEnv = if ($IsMasterBranch -And -Not $IsScheduledJob) {
-            "publish-prod"
-          } else {
-            "publish-test"
+          $RequestedDryRun = $DryRun
+
+          $ReleaseBranch = '${{ inputs.branch }}'
+          if ($ReleaseBranch -match '^refs/heads/(.+)$') {
+            $ReleaseBranch = $Matches[1]
           }
 
-          if (-Not $IsMasterBranch) {
-            $DryRun = $true # force dry run when not on master branch
+          $RequestedEnvironment = '${{ inputs.github-env }}'.Trim().ToLowerInvariant()
+          if ([string]::IsNullOrWhiteSpace($RequestedEnvironment)) {
+            $RequestedEnvironment = 'auto'
+          }
+
+          switch ($RequestedEnvironment) {
+            'auto' {
+              $PackageEnv = if ($IsMasterBranch -And -Not $IsScheduledJob) {
+                'publish-prod'
+              } else {
+                'publish-test'
+              }
+            }
+            'test' {
+              $PackageEnv = 'publish-test'
+            }
+            'prod' {
+              $PackageEnv = 'publish-prod'
+            }
+            default {
+              throw "Unsupported github-env value: $RequestedEnvironment (expected auto, test, or prod)"
+            }
+          }
+
+          if ($RequestedEnvironment -eq 'test' -And ($IsMasterBranch -Or (-Not $SkipPublish -And -Not $RequestedDryRun))) {
+            $PackageEnv = 'publish-prod'
+            echo '::notice::github-env=test was promoted to publish-prod'
+          }
+
+          $ExplicitPackageVersion = '${{ inputs.version }}'.Trim()
+          $BaseVersion = $null
+
+          if ([string]::IsNullOrWhiteSpace($ExplicitPackageVersion)) {
+            if ($ReleaseBranch -notmatch '^release/v(\d+\.\d+\.\d+)$') {
+              throw "Cannot infer version from branch '$ReleaseBranch'. Provide inputs.version explicitly or use release/vX.Y.Z."
+            }
+
+            $BaseVersion = $Matches[1]
+          } else {
+            if ($ExplicitPackageVersion -notmatch '^(\d+\.\d+\.\d+)\.\d+$') {
+              throw "Invalid explicit version format: $ExplicitPackageVersion (expected 1.2.3.4)"
+            }
+
+            $BaseVersion = $Matches[1]
+
+            if ($ReleaseBranch -match '^release/v(\d+\.\d+\.\d+)$' -And $Matches[1] -ne $BaseVersion) {
+              throw "Explicit version '$ExplicitPackageVersion' does not match release branch '$ReleaseBranch'."
+            }
+          }
+
+          if (-Not $IsMasterBranch -And $PackageEnv -ne 'publish-prod') {
+            $DryRun = $true # force dry run on non-master branches unless production was explicitly selected
           }
 
           if ($IsScheduledJob) {
@@ -68,19 +129,8 @@ jobs:
             $DryRun = $true # force dry run when publishing outside production environment
           }
 
-          $ReleaseBranch = '${{ inputs.branch }}'
-          if ($ReleaseBranch -match '^refs/heads/(.+)$') {
-            $ReleaseBranch = $Matches[1]
-          }
-
-          if ($ReleaseBranch -notmatch '^release/v(\d+\.\d+\.\d+)$') {
-            throw "Unsupported release branch format: $ReleaseBranch (expected release/vX.Y.Z)"
-          }
-
-          $BaseVersion = $Matches[1]
-
-          $PackageVersion = '${{ inputs.version }}'
-          if ([string]::IsNullOrEmpty($PackageVersion) -or $PackageVersion -eq 'latest') {
+          $PackageVersion = $ExplicitPackageVersion
+          if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
             $TagPrefix = "v$BaseVersion"
 
             git fetch --tags --force | Out-Null
@@ -117,14 +167,17 @@ jobs:
             throw "invalid version format: $PackageVersion, expected: 1.2.3.4"
           }
 
+          echo "base-version=$BaseVersion" >> $Env:GITHUB_OUTPUT
           echo "package-env=$PackageEnv" >> $Env:GITHUB_OUTPUT
           echo "package-version=$PackageVersion" >> $Env:GITHUB_OUTPUT
           echo "skip-publish=$($SkipPublish.ToString().ToLower())" >> $Env:GITHUB_OUTPUT
           echo "dry-run=$($DryRun.ToString().ToLower())" >> $Env:GITHUB_OUTPUT
 
+          echo "::notice::BaseVersion: $BaseVersion"
           echo "::notice::Environment: $PackageEnv"
           echo "::notice::Version: $PackageVersion"
           echo "::notice::InputVersion: ${{ inputs.version }}"
+          echo "::notice::GitHubEnvMode: $RequestedEnvironment"
           echo "::notice::Branch: ${{ inputs.branch }}"
           echo "::notice::DryRun: $DryRun"
 
@@ -369,12 +422,8 @@ jobs:
         shell: pwsh
         run: |
           $PackageVersion = '${{ needs.preflight.outputs.package-version }}'
-          $ReleaseBranch = '${{ inputs.branch }}'
-          if ($ReleaseBranch -notmatch '^release/(.+)$') {
-            throw "Unsupported release branch format: $ReleaseBranch"
-          }
-
-          $BaseTag = "upstream/$($Matches[1])"
+          $BaseVersion = '${{ needs.preflight.outputs.base-version }}'
+          $BaseTag = "upstream/v$BaseVersion"
           $BaseTagExists = (git -C gsudo-src tag -l $BaseTag)
           if (-not $BaseTagExists) {
             throw "Base tag not found in patched source: $BaseTag"
