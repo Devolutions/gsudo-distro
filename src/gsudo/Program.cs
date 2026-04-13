@@ -30,6 +30,25 @@ namespace gsudo
             var commandLine = ArgumentsHelper.GetRealCommandLine();
             var args = ArgumentsHelper.SplitArgs(commandLine);
 
+#if UNIELEVATE
+            bool isGsudoService = false;
+            foreach (var arg in args)
+            {
+                if (arg == "gsudoservice" || arg == "gsudoelevate")
+                {
+                    isGsudoService = true;
+                    break;
+                }
+            }
+            if (!IntegrityHelpers.VerifyCallerProcess(isGsudoService))
+            {
+                Logger.Instance.Log("The Elevator was not called from a trusted process", LogLevel.Error);
+#if !DEBUG || !DISABLE_INTEGRITY
+                return Constants.GSUDO_ERROR_EXITCODE;
+#endif
+            }
+#endif
+
             try
             {
                 try
