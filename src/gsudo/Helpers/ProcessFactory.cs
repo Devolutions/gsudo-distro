@@ -16,7 +16,7 @@ namespace gsudo.Helpers
 {
     public static class ProcessFactory
     {
-        public static Process StartElevatedDetached(string filename, string arguments, bool hidden)
+        public static void StartElevatedDetached(string filename, string arguments, bool hidden)
         {
             Logger.Instance.Log($"Elevating process: {filename} {arguments}", LogLevel.Debug);
 
@@ -43,7 +43,10 @@ namespace gsudo.Helpers
 
                 throw;
             }
-            return process;
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Failed to get a handle from the elevated process directly: {ex.Message}", LogLevel.Warning);
+            }
         }
 
         public static Process StartRedirected(string fileName, string arguments, string startFolder)
