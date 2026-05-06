@@ -27,6 +27,7 @@ namespace gsudo
         private static readonly string[] RECOGNIZED_CALLER_ASSEMBLY_NAMES =
         [
             "UniGetUI",
+            "UniGetUI.Avalonia",
             "WingetUI",
 #if DEBUG
             // "cmd",
